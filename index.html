@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel='stylesheet' type='text/css' href='style.css'>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+  <title>Local KV Store</title>
+</head>
+<body>
+  <div class='wrapper'>
+    <header>
+      <h1>Local KV Store</h1>
+      <div class='mode light'></div>
+    </header>
+    <div class='input-group'>
+      <input type='text' id='key' placeholder='key'>
+      <input type='text' id='value' placeholder='value'>
+      <button type='submit' id='submitBtn'>Submit</button>
+    </div>
+
+    <ul class='kvs'>
+    </ul>
+  </div>
+  <script src='https://unpkg.com/redux@4.0.5/dist/redux.js'></script>
+  <script>
+    let mode = 'light'
+
+    function toggleMode() {
+      const modeToggler = document.querySelector('.mode');
+
+      document.body.classList.toggle('dark');
+      document.querySelector('.kvs').classList.toggle('dark');
+
+      if (mode === 'light') {
+        modeToggler.classList.remove('light');
+        modeToggler.classList.add('dark');
+        mode = 'dark';
+      } else {
+        modeToggler.classList.add('light');
+        modeToggler.classList.remove('dark');
+        document.body.classList.remove('dark');
+        mode = 'light';
+      }
+    }
+
+    document.querySelector('.mode').addEventListener('click', () => toggleMode());
+
+    const generateId = () => {
+      return '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    const loadState = () => {
+      try {
+        const serializedState = localStorage.getItem('state');
+        if (serializedState === null) {
+          return undefined;
+        }
+        return JSON.parse(serializedState);
+      } catch (err) {
+        return undefined;
+      }
+    }; 
+
+    const saveState = (state) => {
+      try {
+        const serializedState = JSON.stringify(state);
+        localStorage.setItem('state', serializedState);
+      } catch {
+        // ignore write errors
+      }
+    };
+
+    const ADD_KV= 'ADD_KV';
+    const DELETE_KV = 'DELETE_KV';
+    const LOAD_INITIAL_KVS = 'LOAD_INITIAL_KVS';
+    
+    function addKvAction(kv) {
+      return { type: ADD_KV, kv }
+    }
+
+    function deleteKvAction(id) {
+      return { type: DELETE_KV, id }
+    }
+
+    function loadInitialKvsAction(kvs) {
+      return { type: LOAD_INITIAL_KVS, kvs }
+    }
+
+    function app(state = [], action) {
+      switch (action.type) {
+        case ADD_KV:
+          return [...state, action.kv]
+        case DELETE_KV:
+          return state.filter((kv) => kv.id !== action.id);
+        case LOAD_INITIAL_KVS:
+          return action.kvs;
+        default:
+          return state;
+      }
+    }
+
+    const store = Redux.createStore(
+      app,
+    );
+
+    function addKv() {
+      const keyInput = document.querySelector('#key');
+      const valueInput = document.querySelector('#value');
+
+      const key = keyInput.value;
+      const value = valueInput.value;
+
+      store.dispatch(addKvAction({ id: generateId(), key, value }));
+    }
+
+    document.querySelector('#submitBtn').addEventListener('click', addKv);
+
+    function addKvToDOM(kv) {
+      const keyNode = document.createElement('span');
+      keyNode.innerHTML = kv.key;
+
+      const valueNode = document.createElement('span');
+      valueNode.innerHTML = kv.value;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.innerHTML = 'X';
+      removeBtn.addEventListener('click', () => store.dispatch(deleteKvAction(kv.id)));
+
+      document.querySelector('.kvs').appendChild(keyNode);
+      document.querySelector('.kvs').appendChild(valueNode);
+      document.querySelector('.kvs').appendChild(removeBtn);
+    }
+
+    store.subscribe(() => {
+      const kvs = store.getState();
+      document.querySelector('.kvs').innerHTML = '';
+
+      kvs.forEach(addKvToDOM)
+
+      saveState(kvs);
+    });
+
+    const kvs = loadState();
+    store.dispatch(loadInitialKvsAction(kvs));
+  </script>
+</body>
+</html>
